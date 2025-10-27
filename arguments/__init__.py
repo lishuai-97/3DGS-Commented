@@ -17,6 +17,11 @@ class GroupParams:
     pass
 
 class ParamGroup:
+    '''
+    定义一个名为ParamGroup的类
+    主要作用是将一组相关的配置参数注册到argparse.ArgumentParser实例中，
+    并提供一个机制从解析结果中提取这些特定参数
+    '''
     def __init__(self, parser: ArgumentParser, name : str, fill_none = False):
         group = parser.add_argument_group(name)
         for key, value in vars(self).items():

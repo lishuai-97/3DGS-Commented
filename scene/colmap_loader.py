@@ -13,6 +13,8 @@ import numpy as np
 import collections
 import struct
 
+# 使用 collections.namedtuple 创建一个命名元组类 CameraModel
+# 用于表示 COLMAP 相机模型的基本信息
 CameraModel = collections.namedtuple(
     "CameraModel", ["model_id", "model_name", "num_params"])
 Camera = collections.namedtuple(

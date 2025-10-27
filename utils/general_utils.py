@@ -16,6 +16,7 @@ import numpy as np
 import random
 
 def inverse_sigmoid(x):
+    # \sigma = \frac{1}{1+exp(-x)}  => x = log(\frac{\sigma}{1-\sigma})
     return torch.log(x/(1-x))
 
 def PILtoTorch(pil_image, resolution):

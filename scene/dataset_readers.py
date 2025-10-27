@@ -44,6 +44,7 @@ class SceneInfo(NamedTuple):
 
 def getNerfppNorm(cam_info):
     def get_center_and_diag(cam_centers):
+        # 将多个相机中心坐标水平拼接成一个矩阵
         cam_centers = np.hstack(cam_centers)
         avg_cam_center = np.mean(cam_centers, axis=1, keepdims=True)    # 平均中心，所有相机与原点的平均距离
         center = avg_cam_center

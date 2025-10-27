@@ -46,14 +46,14 @@ class GaussianModel:
         self.max_sh_degree = sh_degree   #最大球谐阶数
         # 存储不同信息的张量（tensor）
         self._xyz = torch.empty(0) #空间位置
-        self._features_dc = torch.empty(0)
-        self._features_rest = torch.empty(0)
+        self._features_dc = torch.empty(0) # 球谐函数的第0阶系数，对应常数项
+        self._features_rest = torch.empty(0)  # 球谐函数的高阶系数
         self._scaling = torch.empty(0)  #椭球的形状尺度
         self._rotation = torch.empty(0) #椭球的旋转
         self._opacity = torch.empty(0)  #不透明度
-        self.max_radii2D = torch.empty(0)
-        self.xyz_gradient_accum = torch.empty(0)
-        self.denom = torch.empty(0)
+        self.max_radii2D = torch.empty(0)   # 最大2D半径
+        self.xyz_gradient_accum = torch.empty(0)   # 累积每个高斯函数中心点的位置梯度（L2范数），用于指导高斯球进行”克隆“或者”分裂“
+        self.denom = torch.empty(0)        # 用于记录每个高斯球的梯度被累加了多少次
         self.optimizer = None  #初始化优化器为 None。
         self.percent_dense = 0  #初始化百分比密度为0。
         self.spatial_lr_scale = 0 #初始化空间学习速率缩放为0。
@@ -212,15 +212,19 @@ class GaussianModel:
     def construct_list_of_attributes(self):
         l = ['x', 'y', 'z', 'nx', 'ny', 'nz']
         # All channels except the 3 DC
+        # self._features_dc: (N, 1, 3)
+        # 因此会添加3个属性：f_dc_0, f_dc_1, f_dc_2
         for i in range(self._features_dc.shape[1]*self._features_dc.shape[2]):
             l.append('f_dc_{}'.format(i))
+        # self._features_rest: (N, (max_sh_degree + 1)**2 - 1, 3)
+        # 当max_sh_degree=3时，会添加45个属性
         for i in range(self._features_rest.shape[1]*self._features_rest.shape[2]):
             l.append('f_rest_{}'.format(i))
         l.append('opacity')
         for i in range(self._scaling.shape[1]):
-            l.append('scale_{}'.format(i))
+            l.append('scale_{}'.format(i))   # scale_0, scale_1, scale_2
         for i in range(self._rotation.shape[1]):
-            l.append('rot_{}'.format(i))
+            l.append('rot_{}'.format(i))     # rot_0, rot_1, rot_2, rot_3
         return l
 
     def save_ply(self, path):
@@ -250,6 +254,7 @@ class GaussianModel:
     def load_ply(self, path): #这个方法的目的是从PLY文件中加载各种数据，并将这些数据存储为类中的属性，以便后续的操作和训练。
         plydata = PlyData.read(path)
 
+        # np.stack()函数用于沿着新轴将多个数组堆叠在一起
         xyz = np.stack((np.asarray(plydata.elements[0]["x"]),
                         np.asarray(plydata.elements[0]["y"]),
                         np.asarray(plydata.elements[0]["z"])),  axis=1)
@@ -389,7 +394,7 @@ class GaussianModel:
         n_init_points = self.get_xyz.shape[0] # 获取初始点的数量。
         # Extract points that satisfy the gradient condition
         padded_grad = torch.zeros((n_init_points), device="cuda") #创建一个长度为初始点数量的梯度张量，并将计算得到的梯度填充到其中。
-        padded_grad[:grads.shape[0]] = grads.squeeze()
+        padded_grad[:grads.shape[0]] = grads.squeeze()  # 将传入的梯度张量 grads 的值复制到 padded_grad 的前部分
         selected_pts_mask = torch.where(padded_grad >= grad_threshold, True, False) # 创建一个掩码，标记那些梯度大于等于指定阈值的点。
         selected_pts_mask = torch.logical_and(selected_pts_mask,
                                               torch.max(self.get_scaling, dim=1).values > self.percent_dense*scene_extent)
